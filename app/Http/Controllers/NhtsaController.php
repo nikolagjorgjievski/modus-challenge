@@ -42,7 +42,7 @@ class NhtsaController extends Controller
         return response()->json(
             $this->formatVehicleResponse(
                 $vehicles,
-                $request->has('withRating') ? true : false
+                $request->has('withRating') && $request->withRating == 'true' ? true : false
             ));
     }
 
