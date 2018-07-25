@@ -37,7 +37,7 @@ class NhtsaController extends Controller
         try {
             $vehicles = $this->nhtsaService->getVehicles($year, $manufacturer, $model);
         } catch (\Exception $e) {
-            return response()->json(['error' => true, 'errorMessage' => $e->getMessage()]);
+            return response()->json($this->formatVehicleResponse(null));
         }
         return response()->json(
             $this->formatVehicleResponse(
@@ -57,15 +57,14 @@ class NhtsaController extends Controller
      */
     public function postVehicles(Request $request)
     {
-        $this->validate($request, [
-            'modelYear' => 'required',
-            'manufacturer' => 'required',
-            'model' => 'required'
-        ]);
         try {
-            $vehicles = $this->nhtsaService->getVehicles($request->modelYear, $request->manufacturer, $request->model);
+            $vehicles = $this->nhtsaService->getVehicles(
+                $request->input('modelYear'),
+                $request->input('manufacturer'),
+                $request->input('model')
+            );
         } catch (\Exception $e) {
-            return response()->json(['error' => true, 'errorMessage' => $e->getMessage()]);
+            return response()->json($this->formatVehicleResponse(null));
         }
         return response()->json(
             $this->formatVehicleResponse(
@@ -80,9 +79,13 @@ class NhtsaController extends Controller
      */
     function formatVehicleResponse($nhtsaResponse, $withRating = false){
         $result = [
-            'Count' => $nhtsaResponse->Count,
+            'Count' => 0,
             'Results' => []
         ];
+        if (is_null($nhtsaResponse)) {
+            return $result;
+        }
+        $result['Count'] = $nhtsaResponse->Count;
         foreach ($nhtsaResponse->Results as $nhtsaResult) {
             $newItem = [
                 'Description' => $nhtsaResult->VehicleDescription,
