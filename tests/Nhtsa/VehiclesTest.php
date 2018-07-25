@@ -1,5 +1,7 @@
 <?php
+namespace Tests\Nhtsa;
 
+use Tests\TestCase;
 
 class VehiclesTest extends TestCase
 {
@@ -88,8 +90,7 @@ class VehiclesTest extends TestCase
             "modelYear" => 2015,
             "manufacturer" => "Audi",
             "model" => "A3"
-        ])
-             ->seeJsonEquals([
+        ])->seeJsonEquals([
                  "Count" => 4,
                  "Results" => [
                      [
@@ -115,8 +116,7 @@ class VehiclesTest extends TestCase
             "modelYear" => 2015,
             "manufacturer" => "Toyota",
             "model" => "Yaris"
-        ])
-             ->seeJsonEquals([
+        ])->seeJsonEquals([
                  "Count" => 2,
                  "Results" => [
                      [
@@ -141,8 +141,7 @@ class VehiclesTest extends TestCase
         $this->post('/vehicles', [
             "manufacturer" => "Honda",
             "model"        => "Accord"
-        ])
-             ->seeJsonEquals([
+        ])->seeJsonEquals([
                  "Count"   => 0,
                  "Results" => []
              ]);
