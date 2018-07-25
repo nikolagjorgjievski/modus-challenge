@@ -12,3 +12,4 @@
 */
 
 $router->get('/vehicles/{year}/{manufacturer}/{model}', 'NhtsaController@vehicles');
+$router->post('/vehicles', 'NhtsaController@postVehicles');

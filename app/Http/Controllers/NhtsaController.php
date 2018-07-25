@@ -3,14 +3,55 @@
 namespace App\Http\Controllers;
 
 use GuzzleHttp\Client;
+use Illuminate\Http\Request;
 
 class NhtsaController extends Controller
 {
     public $nhtsaUrl = 'https://one.nhtsa.gov/webapi/api/';
 
+    /**
+     * Get vehicle
+     *
+     * @url GET /vehicles/{year}/{manufacturer}/{model}
+     *
+     * @param $year
+     * @param $manufacturer
+     * @param $model
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function vehicles($year, $manufacturer, $model)
     {
-        $nhtsaResponse = $this->getNhtsaResponse($year, $manufacturer, $model);
+        return response()->json(
+            $this->formatVehicleReponse(
+                $this->getNhtsaResponse($year, $manufacturer, $model)
+            ));
+    }
+
+    /**
+     * Post vehicle
+     *
+     * @url POST /vehicles
+     *
+     * @param Request $request
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function postVehicles(Request $request)
+    {
+        $this->validate($request, [
+            'modelYear' => 'required',
+            'manufacturer' => 'required',
+            'model' => 'required'
+        ]);
+        return response()->json(
+            $this->formatVehicleReponse(
+                $this->getNhtsaResponse($request->modelYear, $request->manufacturer, $request->model)
+            ));
+
+    }
+
+    function formatVehicleReponse($nhtsaResponse){
         $result = [
             'Count' => $nhtsaResponse->Count,
             'Results' => []
@@ -21,8 +62,7 @@ class NhtsaController extends Controller
                 'VehicleId' => $nhtsaResult->VehicleId
             ];
         }
-
-        return response()->json($result);
+        return $result;
     }
 
     function getNhtsaResponse($year, $manufacturer, $model)
