@@ -2,13 +2,24 @@
 
 namespace App\Http\Controllers;
 
-use GuzzleHttp\Client;
+use App\Services\NhtsaService;
 use Illuminate\Http\Request;
 
 class NhtsaController extends Controller
 {
-    public $nhtsaUrl = 'https://one.nhtsa.gov/webapi/api/';
-
+    /**
+     * @var NhtsaService
+     */
+    private $nhtsaService;
+    /**
+     * Create a new controller instance.
+     *
+     * @param NhtsaService $nhtsaService
+     */
+    public function __construct(NhtsaService $nhtsaService)
+    {
+        $this->nhtsaService = $nhtsaService;
+    }
     /**
      * Get vehicle
      *
@@ -17,14 +28,21 @@ class NhtsaController extends Controller
      * @param $year
      * @param $manufacturer
      * @param $model
+     * @param Request $request
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function vehicles($year, $manufacturer, $model)
+    public function vehicles($year, $manufacturer, $model, Request $request)
     {
+        try {
+            $vehicles = $this->nhtsaService->getVehicles($year, $manufacturer, $model);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'errorMessage' => $e->getMessage()]);
+        }
         return response()->json(
-            $this->formatVehicleReponse(
-                $this->getNhtsaResponse($year, $manufacturer, $model)
+            $this->formatVehicleResponse(
+                $vehicles,
+                $request->has('withRating') ? true : false
             ));
     }
 
@@ -44,39 +62,40 @@ class NhtsaController extends Controller
             'manufacturer' => 'required',
             'model' => 'required'
         ]);
+        try {
+            $vehicles = $this->nhtsaService->getVehicles($request->modelYear, $request->manufacturer, $request->model);
+        } catch (\Exception $e) {
+            return response()->json(['error' => true, 'errorMessage' => $e->getMessage()]);
+        }
         return response()->json(
-            $this->formatVehicleReponse(
-                $this->getNhtsaResponse($request->modelYear, $request->manufacturer, $request->model)
+            $this->formatVehicleResponse(
+                $vehicles
             ));
-
     }
 
-    function formatVehicleReponse($nhtsaResponse){
+    /*
+     * Transform API response to desired structure
+     *
+     * If $withRating = true, append CrashRating for each result
+     */
+    function formatVehicleResponse($nhtsaResponse, $withRating = false){
         $result = [
             'Count' => $nhtsaResponse->Count,
             'Results' => []
         ];
         foreach ($nhtsaResponse->Results as $nhtsaResult) {
-            $result['Results'][] = [
+            $newItem = [
                 'Description' => $nhtsaResult->VehicleDescription,
                 'VehicleId' => $nhtsaResult->VehicleId
             ];
+            if ($withRating) {
+                $vehicleRating = $this->nhtsaService->getRating($nhtsaResult->VehicleId);
+                if (count($vehicleRating->Results) > 0){
+                    $newItem['CrashRating'] = $vehicleRating->Results[0]->OverallRating;
+                }
+            }
+            $result['Results'][] = $newItem;
         }
         return $result;
-    }
-
-    function getNhtsaResponse($year, $manufacturer, $model)
-    {
-        $guzzle = new Client();
-        $res = $guzzle->request('GET', $this->nhtsaUrl . 'SafetyRatings'
-                                       . '/modelyear/' . $year
-                                       . '/make/' . $manufacturer
-                                       . '/model/' . $model
-                                       . '?format=json');
-        if ($res->getStatusCode() != 200) {
-            throw new \Exception;
-        }
-
-        return json_decode($res->getBody());
     }
 }
