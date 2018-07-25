@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\NhtsaService;
+use App\Transformers\NhtsaTransformer;
 use Illuminate\Http\Request;
 
 class NhtsaController extends Controller
@@ -12,13 +13,21 @@ class NhtsaController extends Controller
      */
     private $nhtsaService;
     /**
+     * @var NhtsaTransformer
+     */
+    private $nhtsaTransformer;
+    /**
      * Create a new controller instance.
      *
      * @param NhtsaService $nhtsaService
+     * @param NhtsaTransformer $nhtsaTransformer
      */
-    public function __construct(NhtsaService $nhtsaService)
-    {
+    public function __construct(
+        NhtsaService $nhtsaService,
+        NhtsaTransformer $nhtsaTransformer
+    ) {
         $this->nhtsaService = $nhtsaService;
+        $this->nhtsaTransformer = $nhtsaTransformer;
     }
     /**
      * Get vehicle
@@ -34,16 +43,14 @@ class NhtsaController extends Controller
      */
     public function vehicles($year, $manufacturer, $model, Request $request)
     {
-        try {
-            $vehicles = $this->nhtsaService->getVehicles($year, $manufacturer, $model);
-        } catch (\Exception $e) {
-            return response()->json($this->formatVehicleResponse(null));
-        }
-        return response()->json(
-            $this->formatVehicleResponse(
-                $vehicles,
-                $request->has('withRating') && $request->withRating === 'true' ? true : false
-            ));
+        $withRating = $request->has('withRating') && $request->withRating === 'true';
+
+        $vehicles = $this->nhtsaService->getVehicles([
+            'year' => $year,
+            'manufacturer' => $manufacturer,
+            'model' => $model
+        ], $withRating);
+        return response()->json($this->nhtsaTransformer->transform($vehicles, $withRating));
     }
 
     /**
@@ -57,48 +64,11 @@ class NhtsaController extends Controller
      */
     public function postVehicles(Request $request)
     {
-        try {
-            $vehicles = $this->nhtsaService->getVehicles(
-                $request->input('modelYear'),
-                $request->input('manufacturer'),
-                $request->input('model')
-            );
-        } catch (\Exception $e) {
-            return response()->json($this->formatVehicleResponse(null));
-        }
-        return response()->json(
-            $this->formatVehicleResponse(
-                $vehicles
-            ));
-    }
-
-    /*
-     * Transform API response to desired structure
-     *
-     * If $withRating = true, append CrashRating for each result
-     */
-    function formatVehicleResponse($nhtsaResponse, $withRating = false){
-        $result = [
-            'Count' => 0,
-            'Results' => []
-        ];
-        if (is_null($nhtsaResponse)) {
-            return $result;
-        }
-        $result['Count'] = $nhtsaResponse->Count;
-        foreach ($nhtsaResponse->Results as $nhtsaResult) {
-            $newItem = [
-                'Description' => $nhtsaResult->VehicleDescription,
-                'VehicleId' => $nhtsaResult->VehicleId
-            ];
-            if ($withRating) {
-                $vehicleRating = $this->nhtsaService->getRating($nhtsaResult->VehicleId);
-                if (count($vehicleRating->Results) > 0){
-                    $newItem['CrashRating'] = $vehicleRating->Results[0]->OverallRating;
-                }
-            }
-            $result['Results'][] = $newItem;
-        }
-        return $result;
+        $vehicles = $this->nhtsaService->getVehicles([
+            'year' => $request->input('modelYear'),
+            'manufacturer' => $request->input('manufacturer'),
+            'model' => $request->input('model')
+        ]);
+        return response()->json($this->nhtsaTransformer->transform($vehicles));
     }
 }

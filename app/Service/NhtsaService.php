@@ -11,19 +11,40 @@ class NhtsaService
     /**
      * https://one.nhtsa.gov/webapi/api/SafetyRatings/modelyear/<MODEL YEAR>/make/<MANUFACTURER>/model/<MODEL>?format=json
      *
-     * @param $year
-     * @param $manufacturer
-     * @param $model
+     * @param @data
+     * @param @$withRating
      *
      * @return mixed
      */
-    public function getVehicles($year, $manufacturer, $model)
+    public function getVehicles($data, $withRating = false)
     {
-        return $this->request('GET', $this->url . 'SafetyRatings'
-                                         . '/modelyear/' . $year
-                                         . '/make/' . $manufacturer
-                                         . '/model/' . $model
+        $vehicles = $this->request('GET', $this->url . 'SafetyRatings'
+                                         . '/modelyear/' . $data['year']
+                                         . '/make/' . $data['manufacturer']
+                                         . '/model/' . $data['model']
                                          . '?format=json');
+        return $withRating ? $this->getVehiclesWithRating($vehicles) : $vehicles;
+    }
+
+    /**
+     * https://one.nhtsa.gov/webapi/api/SafetyRatings/VehicleId/<VehicleId>?format=json
+     *
+     * @param $vehicles
+     *
+     * @return mixed
+     */
+    public function getVehiclesWithRating($vehicles)
+    {
+        if (count($vehicles) == 0) {
+            return [];
+        }
+        foreach ($vehicles->Results as $vehicle) {
+            $vehicleRating = $this->getRating($vehicle->VehicleId);
+            if (count($vehicleRating) > 0) {
+                $vehicle->CrashRating = $vehicleRating->Results[0]->OverallRating;
+            }
+        }
+        return $vehicles;
     }
 
     /**
@@ -50,9 +71,13 @@ class NhtsaService
     private function request($method, $url)
     {
         $guzzle = new Client();
-        $res = $guzzle->request($method, $url);
-        if ($res->getStatusCode() != 200) {
-            throw new \Exception;
+        try {
+            $res = $guzzle->request($method, $url);
+            if ($res->getStatusCode() != 200) {
+                return [];
+            }
+        } catch (\Exception $e) {
+            return [];
         }
 
         return json_decode($res->getBody());
