@@ -7,11 +7,10 @@
          convertNoticesToExceptions="true"
          convertWarningsToExceptions="true"
          processIsolation="false"
-         stopOnFailure="false"
-         syntaxCheck="false">
+         stopOnFailure="false">
     <testsuites>
-        <testsuite name="Application Test Suite">
-            <directory suffix="Test.php">./tests</directory>
+        <testsuite name="Nhtsa">
+            <directory suffix="Test.php">./tests/Nhtsa</directory>
         </testsuite>
     </testsuites>
     <filter>
